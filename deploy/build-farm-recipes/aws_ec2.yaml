@@ -29,6 +29,8 @@ args:
     spot_interruption_behavior: terminate
     # if using spot instances, determine the max price
     spot_max_price: ondemand
+    # specific subnet ID to launch instances in (optional, leave null to auto-discover from VPC)
+    subnet_id: null
     # default location of build directory on build host
     default_build_dir: /home/ubuntu/firesim-build
     # managerinit arg end

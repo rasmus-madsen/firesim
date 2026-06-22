@@ -487,6 +487,7 @@ def launch_instances(
     always_expand: bool = True,
     ami_id: Optional[str] = None,
     use_manager_security_group: bool = False,
+    subnet_id: Optional[str] = None,
 ) -> List[EC2InstanceResource]:
     """Launch `count` instances of type `instancetype`
 
@@ -513,6 +514,8 @@ def launch_instances(
         ami_id: Override AMI ID to use for launching instances. `None` results in the default AMI ID specified by
             `awstools.get_2_ami_id()`.
         use_manager_security_group: Use the manager security group instead of the run/build farm security group.
+        subnet_id: Optional specific subnet ID to launch instances in. If `None`, subnets are auto-discovered
+            from the VPC and tried sequentially (or randomly if `randomsubnet=True`).
 
     Returns:
         List of instance resources.  If `always_expand` is True, this list contains only the instances created in this
@@ -532,15 +535,20 @@ def launch_instances(
     ec2 = boto3.resource("ec2")
     client = boto3.client("ec2")
 
-    vpcfilter: Sequence[FilterTypeDef] = [{"Name": "tag:Name", "Values": [vpcname]}]
-    # docs show 'NextToken' / 'MaxResults' which suggests pagination, but
-    # the boto3 source says collections handle pagination automatically,
-    # so assume this is fine
-    # https://github.com/boto/boto3/blob/1.20.21/boto3/resources/collection.py#L32
-    firesimvpc = list(ec2.vpcs.filter(Filters=vpcfilter))
-    subnets = list(firesimvpc[0].subnets.filter())
-    if randomsubnet:
-        random.shuffle(subnets)
+    # If a specific subnet is provided, use only that subnet
+    if subnet_id:
+        subnets = [type('Subnet', (), {'subnet_id': subnet_id})()]
+        rootLogger.info(f"Using specified subnet: {subnet_id}")
+    else:
+        vpcfilter: Sequence[FilterTypeDef] = [{"Name": "tag:Name", "Values": [vpcname]}]
+        # docs show 'NextToken' / 'MaxResults' which suggests pagination, but
+        # the boto3 source says collections handle pagination automatically,
+        # so assume this is fine
+        # https://github.com/boto/boto3/blob/1.20.21/boto3/resources/collection.py#L32
+        firesimvpc = list(ec2.vpcs.filter(Filters=vpcfilter))
+        subnets = list(firesimvpc[0].subnets.filter())
+        if randomsubnet:
+            random.shuffle(subnets)
 
     operation_params = {
         "Filters": [{"Name": "group-name", "Values": [securitygroupname]}]
@@ -705,6 +713,7 @@ def launch_run_instances(
     spotmaxprice: str,
     timeout: timedelta,
     always_expand: bool,
+    subnet_id: Optional[str] = None,
 ) -> List[EC2InstanceResource]:
     return launch_instances(
         instancetype,
@@ -724,6 +733,7 @@ def launch_run_instances(
             },
         ],
         tags={"fsimcluster": fsimclustertag},
+        subnet_id=subnet_id,
     )
 
 
@@ -1071,6 +1081,11 @@ def main(args: List[str]) -> int:
         default=False,
         help="Launch instances within the manager security group instead of the farm security group.",
     )
+    parser.add_argument(
+        "--subnet_id",
+        default=None,
+        help="Specific subnet ID to launch instances in. If not specified, subnets are auto-discovered from the VPC. Used by 'launch'.",
+    )
     parsed_args = parser.parse_args(args)
 
     if parsed_args.command == "launch":
@@ -1086,6 +1101,7 @@ def main(args: List[str]) -> int:
             user_data_file=parsed_args.user_data_file,
             ami_id=parsed_args.ami_id,
             use_manager_security_group=parsed_args.use_manager_security_group,
+            subnet_id=parsed_args.subnet_id,
         )
         instids = get_instance_ids_for_instances(insts)
         print("Instance IDs: {}".format(instids))

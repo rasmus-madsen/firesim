@@ -419,6 +419,7 @@ class AWSEC2F2(RunFarm):
         self.run_instance_market = self.args["run_instance_market"]
         self.spot_interruption_behavior = self.args["spot_interruption_behavior"]
         self.spot_max_price = self.args["spot_max_price"]
+        self.subnet_id = self.args.get("subnet_id", None)
 
         dispatch_dict = dict(
             [(x.__name__, x) for x in inheritors(InstanceDeployManager)]
@@ -565,6 +566,7 @@ class AWSEC2F2(RunFarm):
         spotmaxprice = self.spot_max_price
         timeout = self.launch_timeout
         always_expand = self.always_expand_run_farm
+        subnet_id = self.subnet_id
 
         # actually launch the instances
         launched_instance_objs = {}
@@ -581,6 +583,7 @@ class AWSEC2F2(RunFarm):
                 spotmaxprice,
                 timeout,
                 always_expand,
+                subnet_id,
             )
 
         # wait for instances to get to running state, so that they have been

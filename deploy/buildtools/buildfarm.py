@@ -318,6 +318,7 @@ class AWSEC2(BuildFarm):
         self.build_instance_market = self.args["build_instance_market"]
         self.spot_interruption_behavior = self.args["spot_interruption_behavior"]
         self.spot_max_price = self.args["spot_max_price"]
+        self.subnet_id = self.args.get("subnet_id", None)
 
         self.dest_build_dir = self.args["default_build_dir"]
         if not self.dest_build_dir:
@@ -345,7 +346,8 @@ class AWSEC2(BuildFarm):
                 },
             ],
             tags={"fsimbuildcluster": self.build_farm_tag},
-            randomsubnet=True,
+            randomsubnet=True if self.subnet_id is None else False,
+            subnet_id=self.subnet_id,
         )[0]
 
         self.build_hosts.append(
