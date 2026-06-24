@@ -379,6 +379,7 @@ class AWSEC2F2(RunFarm):
     run_instance_market: str
     spot_interruption_behavior: str
     spot_max_price: str
+    subnet_id: Optional[str]
 
     def __init__(self, args: Dict[str, Any], metasimulation_enabled: bool) -> None:
         super().__init__(args, metasimulation_enabled)
