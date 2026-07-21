@@ -82,6 +82,14 @@ class InstanceDeployManager(metaclass=abc.ABCMeta):
         # Set this to self.nbd_tracker = NBDTracker() in the __init__ of your
         # subclass if your system supports the NBD kernel module.
         self.nbd_tracker = None
+        
+    def install_dependencies(self) -> None:
+        """ Install any dependencies needed to run on the instance
+
+        anything required to run the infrasetup should go in here.
+        like gcc, python etc.
+        Override in subclass if needed
+        """     
 
     @abc.abstractmethod
     def infrasetup_instance(self, uridir: str) -> None:
@@ -685,6 +693,11 @@ class EC2InstanceDeployManager(InstanceDeployManager):
         super().__init__(parent_node)
         self.nbd_tracker = NBDTracker()
 
+    def install_dependencies(self) -> None:
+        self.instance_logger(""" Install missing dependencies for F2 """)
+        run("sudo apt-get update")
+        run("sudo apt-get install -y build-essential linux-headers-$(uname -r) git python3-pip pciutils")
+
     def get_and_install_aws_fpga_sdk(self) -> None:
         """Installs the aws-sdk. This gets us access to tools to flash the fpga."""
         if self.instance_assigned_simulations():
@@ -884,6 +897,7 @@ class EC2InstanceDeployManager(InstanceDeployManager):
                 self.extract_driver_tarball(slotno)
 
             if not metasim_enabled:
+                self.install_dependencies()
                 self.get_and_install_aws_fpga_sdk()
                 # unload any existing edma/xdma/xocl
                 self.unload_xrt_and_xocl()
